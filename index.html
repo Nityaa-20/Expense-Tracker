@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <i class="fas fa-wallet"></i>
+            <span>ExpenseTracker</span>
+        </div>
+        <nav class="nav-menu">
+            <a href="#" class="nav-item active" data-page="dashboard">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-page="expenses">
+                <i class="fas fa-list"></i>
+                <span>All Expenses</span>
+            </a>
+            <a href="#" class="nav-item" data-page="unnecessary">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Unnecessary Expenses</span>
+            </a>
+            <a href="#" class="nav-item" data-page="alternatives">
+                <i class="fas fa-lightbulb"></i>
+                <span>Alternative Options</span>
+            </a>
+            <a href="#" class="nav-item" data-page="analytics">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="#" class="nav-item" data-page="categories">
+                <i class="fas fa-tags"></i>
+                <span>Categories</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 id="pageTitle">Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <button class="header-icon">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge">3</span>
+                </button>
+                <div class="user-profile">
+                    <img src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff" alt="User">
+                </div>
+
+                <a href="#" class="logout-btn" onclick="openLogoutModal()">Logout</a>
+
+
+
+
+            </div>
+        </header>
+
+        <!-- Dashboard Page -->
+        <div class="page-content" id="dashboard-page">
+            <div class="dashboard-container">
+                <!-- Period Tabs -->
+                <div class="period-tabs">
+                    <button class="tab-btn" data-period="daily">DAILY</button>
+                    <button class="tab-btn" data-period="weekly">WEEKLY</button>
+                    <button class="tab-btn active" data-period="monthly">MONTHLY</button>
+                    <button class="tab-btn" data-period="yearly">YEARLY</button>
+                </div>
+
+                <!-- Stats Cards Row -->
+                <div class="stats-row">
+                    <div class="stat-card gradient-pink">
+                        <div class="stat-content">
+                            <p class="stat-label">Total Expenses</p>
+                            <h2 class="stat-value" id="totalExpenses">$0.00</h2>
+                            <p class="stat-subtitle">This Month</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card gradient-blue">
+                        <div class="stat-content">
+                            <p class="stat-label">Necessary Expenses</p>
+                            <h2 class="stat-value" id="necessaryExpenses">$0.00</h2>
+                            <p class="stat-subtitle">Essential spending</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card gradient-orange">
+                        <div class="stat-content">
+                            <p class="stat-label">Unnecessary Expenses</p>
+                            <h2 class="stat-value" id="unnecessaryExpenses">$0.00</h2>
+                            <p class="stat-subtitle">Can be reduced</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card gradient-cyan">
+                        <div class="stat-content">
+                            <p class="stat-label">Potential Savings</p>
+                            <h2 class="stat-value" id="potentialSavings">$0.00</h2>
+                            <p class="stat-subtitle">With alternatives</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart and Category Section -->
+                <div class="chart-section">
+                    <div class="chart-card">
+                        <h3>Expense Trends</h3>
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                    <div class="traffic-card">
+                        <h3>Category Distribution</h3>
+                        <div class="donut-chart">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                        <div class="traffic-stats" id="categoryStats">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="action-btn btn-add" id="addExpenseBtn">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Expense</span>
+                    </button>
+                    <button class="action-btn btn-view" id="viewExpensesBtn">
+                        <i class="fas fa-list"></i>
+                        <span>View All</span>
+                    </button>
+                    <button class="action-btn btn-alert" id="viewUnnecessaryBtn">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>Unnecessary</span>
+                    </button>
+                    <button class="action-btn btn-idea" id="viewAlternativesBtn">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>Alternatives</span>
+                    </button>
+                </div>
+
+                <!-- Recent Transactions -->
+                <div class="recent-section">
+                    <div class="section-header">
+                        <h3>Recent Transactions</h3>
+                        <button class="view-all-btn">View All</button>
+                    </div>
+                    <div class="transactions-list" id="recentTransactions">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Expenses Page -->
+        <div class="page-content" id="expenses-page" style="display: none;">
+            <div class="expenses-container">
+                <div class="page-header">
+                    <h2>All Expenses</h2>
+                    <button class="add-btn" id="addExpenseBtn2">
+                        <i class="fas fa-plus"></i> Add New Expense
+                    </button>
+                </div>
+                
+                <div class="filters">
+                    <select id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <option value="Food">Food</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Bills">Bills</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Health">Health</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <select id="typeFilter">
+                        <option value="">All Types</option>
+                        <option value="necessary">Necessary</option>
+                        <option value="unnecessary">Unnecessary</option>
+                    </select>
+                    <input type="date" id="dateFilter">
+                </div>
+
+                <table class="expenses-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expensesTableBody">
+                        <!-- Will be populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Unnecessary Expenses Page -->
+        <div class="page-content" id="unnecessary-page" style="display: none;">
+            <div class="unnecessary-container">
+                <div class="page-header">
+                    <h2>Unnecessary Expenses</h2>
+                    <div class="alert-box">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>You could save <strong id="unnecessarySavings">$0</strong> by cutting these expenses!</span>
+                    </div>
+                </div>
+
+                <div class="unnecessary-grid" id="unnecessaryGrid">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Alternative Options Page -->
+        <div class="page-content" id="alternatives-page" style="display: none;">
+            <div class="alternatives-container">
+                <div class="page-header">
+                    <h2>Smart Alternative Options</h2>
+                    <p class="subtitle">Save money by choosing better alternatives</p>
+                </div>
+
+                <div class="alternatives-grid" id="alternativesGrid">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Page -->
+        <div class="page-content" id="analytics-page" style="display: none;">
+            <div class="analytics-container">
+                <h2>Expense Analytics</h2>
+                
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <h3>Monthly Comparison</h3>
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                    <div class="analytics-card">
+                        <h3>Category Breakdown</h3>
+                        <canvas id="categoryBarChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="insights-section">
+                    <h3>AI Insights</h3>
+                    <div class="insights-grid" id="insightsGrid">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories Page -->
+        <div class="page-content" id="categories-page" style="display: none;">
+            <div class="categories-container">
+                <div class="page-header">
+                    <h2>Expense Categories</h2>
+                    <button class="add-btn" id="addCategoryBtn">
+                        <i class="fas fa-plus"></i> Add Category
+                    </button>
+                </div>
+
+                <div class="categories-grid" id="categoriesGrid">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Expense Modal -->
+    <div class="modal" id="expenseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Expense</h2>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <form id="expenseForm">
+                <div class="form-group">
+                    <label>Description *</label>
+                    <input type="text" name="description" required placeholder="e.g., Grocery shopping">
+                </div>
+                <div class="form-group">
+                    <label>Amount ($) *</label>
+                    <input type="number" name="amount" step="0.01" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Category *</label>
+                    <select name="category" required>
+                        <option value="">Select a category</option>
+                        <option value="Food">Food</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Bills">Bills</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Health">Health</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" name="date" required>
+                </div>
+                <div class="form-group">
+                    <label>Type *</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="is_necessary" value="true" checked>
+                            <span>Necessary</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="is_necessary" value="false">
+                            <span>Unnecessary</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes (Optional)</label>
+                    <textarea name="notes" rows="3" placeholder="Additional notes..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn-submit">Add Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alternative Suggestion Modal -->
+    <div class="modal" id="alternativeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Suggest Alternative</h2>
+                <button class="close-btn" id="closeAltModal">&times;</button>
+            </div>
+            <form id="alternativeForm">
+                <input type="hidden" name="expense_id" id="altExpenseId">
+                <div class="form-group">
+                    <label>Original Expense</label>
+                    <input type="text" id="altOriginalExpense" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Alternative Suggestion *</label>
+                    <input type="text" name="suggestion" required placeholder="e.g., Cook at home instead">
+                </div>
+                <div class="form-group">
+                    <label>Estimated Savings ($) *</label>
+                    <input type="number" name="savings" step="0.01" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Benefits</label>
+                    <textarea name="benefits" rows="3" placeholder="Explain the benefits..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="cancelAltBtn">Cancel</button>
+                    <button type="submit" class="btn-submit">Add Alternative</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== LOGOUT CONFIRM MODAL (ADD HERE) ===== -->
+    <div id="logoutModal">
+        <div class="modal-content">
+            <p>Are you sure you want to logout?</p>
+            <button onclick="doLogout()">Yes</button>
+            <button onclick="closeModal()">No</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+      function openLogoutModal() {
+        document.getElementById("logoutModal").style.display = "flex";
+      }
+
+      function closeModal() {
+        document.getElementById("logoutModal").style.display = "none";
+      }
+
+      function doLogout() {
+        window.location.href = "/logout";
+      }
+    </script>
+
+      
+</body>
+</html>
