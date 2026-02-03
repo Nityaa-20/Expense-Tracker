@@ -78,52 +78,48 @@ with app.app_context():
 # Routes
 @app.route("/")
 def index():
+    view = request.args.get("view")
+
     if "user_id" not in session:
-        return redirect("/login")
-    return render_template("index.html")
+        if view == "signup":
+            return render_template("index.html", page="signup")
+        return render_template("index.html", page="login")
 
-@app.route("/signup", methods=["GET", "POST"])
+    return render_template("index.html", page="dashboard")
+
+@app.route("/signup", methods=["POST"])
 def signup():
-    if request.method == "POST":
-        username = request.form["username"]
-        email = request.form["email"]
-        password = request.form["password"]
+    username = request.form["username"]
+    email = request.form["email"]
+    password = request.form["password"]
 
-        hashed_password = generate_password_hash(password)
+    hashed_password = generate_password_hash(password)
 
-        new_user = User(
-            username=username,
-            email=email,
-            password_hash=hashed_password
-        )
+    new_user = User(username=username, email=email, password_hash=hashed_password)
+    db.session.add(new_user)
+    db.session.commit()
 
-        db.session.add(new_user)
-        db.session.commit()
+    return render_template("index.html", page="login")
 
-        return redirect("/login")
-
-    return render_template("signup.html")
-
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login", methods=["POST"])
 def login():
-    if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+    username = request.form["username"]
+    password = request.form["password"]
 
-        user = User.query.filter_by(username=username).first()
+    user = User.query.filter_by(username=username).first()
 
-        if user and check_password_hash(user.password_hash, password):
-            session["user_id"] = user.id
-            return redirect("/")
-        else:
-            return "Invalid credentials"
+    if user and check_password_hash(user.password_hash, password):
+        session["user_id"] = user.id
+        return redirect("/")
+    else:
+        return render_template("index.html", page="login", error="Invalid credentials")
 
-    return render_template("login.html")
 
 @app.route("/logout")
 def logout():
     session.pop("user_id", None)
-    return redirect("/login")
+    return redirect("/")
+
 
 
 # API Endpoints
