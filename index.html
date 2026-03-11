@@ -6,8 +6,14 @@
     <title>Expense Tracker - Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+
 </head>
 <body>
+
+<script>
+const userCurrency = "{{ currency }}";
+</script>
 {% if page == "login" %}
 
 <!-- ===== LOGIN FORM ===== -->
@@ -58,9 +64,17 @@
     <p class="sub">Sign up to continue</p>
 
     <form method="POST" action="/signup">
-      <input type="text" name="username" placeholder="Username" required>
-      <input type="email" name="email" placeholder="Email" required>
-      <input type="password" name="password" placeholder="Password" required>
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Password" required>
+
+        <select name="currency" required>
+            <option value="">Select Preferred Currency</option>
+            <option value="$">USD ($)</option>
+            <option value="₹">INR (₹)</option>
+            <option value="€">EUR (€)</option>
+            <option value="£">GBP (£)</option>
+        </select>
 
       <button type="submit" class="btn-auth">Sign up</button>
     </form>
@@ -119,7 +133,10 @@
                 <button class="menu-toggle">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1 id="pageTitle">Dashboard</h1>
+                <div>
+                    <h1 id="pageTitle">Dashboard</h1>
+                    <p class="welcome-text">Welcome back, {{ username }} 👋</p>
+                 </div>
             </div>
             <div class="header-right">
                 <button class="header-icon">
@@ -127,13 +144,14 @@
                     <span class="badge">3</span>
                 </button>
                 <div class="user-profile">
-                    <img src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff" alt="User">
+                    <img src="https://ui-avatars.com/api/?name={{ username }}&background=6366f1&color=fff" alt="User">
+
                 </div>
 
+                
+
+
                 <a href="#" class="logout-btn" onclick="openLogoutModal()">Logout</a>
-
-
-
 
             </div>
         </header>
@@ -183,6 +201,28 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Budget Section -->
+                <div class="budget-card">
+                    <h3>Monthly Budget</h3>
+
+                    <div class="budget-input">
+                        <input type="number" id="budgetInput" placeholder="Enter monthly budget in your currency">
+                        <button onclick="saveBudget()">Save</button>
+                    </div>
+
+                    <div class="budget-info">
+                        <span id="budgetUsed">₹0</span> /
+                        <span id="budgetTotal">₹0</span>
+                    </div>
+
+                    <div class="budget-bar">
+                        <div id="budgetProgress"></div>
+                    </div>
+
+                    <p id="budgetMessage"></p>
+                </div>
+
 
                 <!-- Chart and Category Section -->
                 <div class="chart-section">
@@ -362,12 +402,15 @@
                 <button class="close-btn" id="closeModal">&times;</button>
             </div>
             <form id="expenseForm">
+                <input type="hidden" name="expense_id" id="expenseId">
+
                 <div class="form-group">
                     <label>Description *</label>
                     <input type="text" name="description" required placeholder="e.g., Grocery shopping">
                 </div>
                 <div class="form-group">
-                    <label>Amount ($) *</label>
+                    <label id="amountLabel">Amount ($) *</label>
+
                     <input type="number" name="amount" step="0.01" required placeholder="0.00">
                 </div>
                 <div class="form-group">
@@ -455,6 +498,10 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        const username = "{{ username }}";
+        
+    </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script>
       function openLogoutModal() {
@@ -471,14 +518,18 @@
     </script>
 
 {% endif %}   
-<script>
-function showSignup() {
-  window.location.href = "/?view=signup";
-}
 
-function showLogin() {
-  window.location.href = "/";
-}
-</script> 
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+    const label = document.getElementById("amountLabel");
+
+    if(label){
+        label.textContent = "Amount (" + userCurrency + ") *";
+    }
+
+});
+</script>
 </body>
 </html>
