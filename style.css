@@ -1288,6 +1288,28 @@ body {
     padding-right: 30px;
 }
 
+.ai-badge{
+    display:inline-block;
+    background:#6366f1;
+    color:white;
+    font-size:12px;
+    padding:4px 10px;
+    border-radius:20px;
+    margin-bottom:10px;
+}
+
+.savings-highlight{
+    margin-top:10px;
+    color:#10b981;
+    font-weight:bold;
+}
+
+.ai-reason{
+    margin-top:8px;
+    font-size:13px;
+    color:#6b7280;
+}
+
 
 
 @media (max-width: 768px) {
