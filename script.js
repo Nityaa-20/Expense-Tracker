@@ -139,7 +139,10 @@ function switchPage(page) {
         renderAlternatives();
     } else if (page === 'analytics') {
         renderAnalytics();
-    } else if (page === 'categories') {
+    
+    }else if (page === 'ai') {
+        renderInsights();
+    }else if (page === 'categories') {
         renderCategories();
     } else if (page === 'dashboard') {
         updateDashboard();
@@ -725,7 +728,7 @@ function renderUnnecessaryExpenses() {
                 </div>
             </div>
 
-            <p><strong>Alternative:</strong> ${alt.suggestion}</p>
+            
 
             <p style="color:#10b981;">
                 Potential Saving: ${formatMoney(estimatedSavings)}
@@ -759,7 +762,36 @@ async function renderAlternatives() {
         const alternatives = data.alternatives || [];
         
         if (alternatives.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: #6b7280;">No alternatives suggested yet. Add some from the expenses page!</p>';
+
+            const unnecessary = allExpenses.filter(e => !e.is_necessary);
+
+            container.innerHTML = unnecessary.map(exp => {
+
+                const alt = smartAlternatives[exp.category] || smartAlternatives["Other"];
+
+                return `
+                <div class="alternative-card">
+
+                    <div class="ai-badge">AI Recommendation</div>
+
+                    <h3>${exp.description}</h3>
+
+                    <p><strong>Better Choice:</strong></p>
+                    <p>${alt.suggestion}</p>
+
+                    <div class="savings-highlight">
+                    Potential Saving: ${formatMoney(exp.amount * alt.savePercent)}
+                    </div>
+
+                    <p class="ai-reason">
+                    This suggestion is based on reducing unnecessary spending in the ${exp.category} category.
+                    </p>
+
+                </div>
+                `;
+
+            }).join('');
+
             return;
         }
         
@@ -792,6 +824,80 @@ function renderAnalytics() {
     renderMonthlyChart();
     renderCategoryBarChart();
     renderInsights();
+    calculateSpendingTrend();
+    calculateSpendingPrediction();
+}
+
+function calculateSpendingTrend() {
+
+    const trendText = document.getElementById("spendingTrendText");
+    if (!trendText) return;
+
+    const monthlyTotals = {};
+
+    allExpenses.forEach(exp => {
+        const month = exp.date.substring(0,7);
+        monthlyTotals[month] = (monthlyTotals[month] || 0) + exp.amount;
+    });
+
+    const months = Object.keys(monthlyTotals).sort();
+
+    if (months.length < 2) {
+        trendText.textContent = "Not enough data to calculate trend.";
+        return;
+    }
+
+    const lastMonth = monthlyTotals[months[months.length - 1]];
+    const prevMonth = monthlyTotals[months[months.length - 2]];
+
+    const change = ((lastMonth - prevMonth) / prevMonth) * 100;
+
+    if (change > 0) {
+        trendText.textContent =
+        `📈 Your spending increased by ${change.toFixed(1)}% compared to last month.`;
+    } else {
+        trendText.textContent =
+        `📉 Your spending decreased by ${Math.abs(change).toFixed(1)}% compared to last month.`;
+    }
+}
+
+function calculateSpendingPrediction() {
+
+    const predictionText = document.getElementById("spendingPredictionText");
+    if (!predictionText) return;
+
+    const monthlyTotals = {};
+
+    allExpenses.forEach(exp => {
+        const month = exp.date.substring(0,7);
+        monthlyTotals[month] = (monthlyTotals[month] || 0) + exp.amount;
+    });
+
+    const months = Object.keys(monthlyTotals).sort();
+
+    if (months.length < 2) {
+        predictionText.textContent = "Not enough data to predict next month.";
+        return;
+    }
+
+    const lastMonth = monthlyTotals[months[months.length - 1]];
+    const prevMonth = monthlyTotals[months[months.length - 2]];
+
+    const growth = lastMonth - prevMonth;
+
+    const predicted = lastMonth + growth;
+
+    let message =
+        `🔮 Based on your spending trend, next month spending could be ${formatMoney(predicted)}.`;
+
+    if (monthlyBudget && predicted > monthlyBudget) {
+
+        const diff = predicted - monthlyBudget;
+
+        message += ` ⚠ You may exceed your budget by ${formatMoney(diff)}.`;
+    }
+
+    predictionText.textContent = message;
 }
 
 // Render monthly comparison chart
@@ -904,7 +1010,7 @@ function renderCategoryBarChart() {
 
 // Render AI insights
 function renderInsights() {
-    const container = document.getElementById('insightsGrid');
+    const container = document.getElementById('aiInsightsGrid');
     if (!container) return;
     
     const insights = generateInsights();
@@ -961,6 +1067,44 @@ function generateInsights() {
             title: 'Daily Average',
             description: `Your average daily spending is ${formatMoney(avgDaily)}. Setting a daily budget can help you stay on track.`
         });
+    }
+
+    // Financial Health Score
+    if (stats.total > 0) {
+
+        let score = 100;
+
+        const unnecessaryRatio = stats.unnecessary / stats.total;
+
+        if (unnecessaryRatio > 0.4) {
+            score -= 30;
+        } else if (unnecessaryRatio > 0.2) {
+            score -= 15;
+        }
+
+        if (monthlyBudget && stats.total > monthlyBudget) {
+            score -= 25;
+        }
+
+        insights.push({
+            title: "Financial Health Score",
+            description: `Your financial health score is ${score}/100. ${
+                score > 80 ? "Excellent spending habits!" :
+                score > 60 ? "Your finances are fairly balanced." :
+                "Try reducing unnecessary expenses to improve your score."
+            }`
+        });
+    }
+
+    // Smart Spending Advice
+    if (stats.unnecessary > stats.necessary) {
+
+        insights.push({
+            title: "Spending Advice",
+            description:
+            "You are spending more on unnecessary items than essential ones. Consider reducing impulse purchases to improve savings."
+        });
+
     }
     
     return insights;
