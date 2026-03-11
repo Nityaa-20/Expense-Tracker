@@ -64,9 +64,9 @@ const smartAlternatives = {
 
 
 // Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     setupEventListeners();
-    loadExpenses();
+    await loadExpenses();
     setupNav();
     setDefaultDate();
     loadBudget();
@@ -90,6 +90,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         });
     }
+
+    const periodTabs = document.querySelectorAll(".tab-btn");
+
+    periodTabs.forEach(tab => {
+        tab.addEventListener("click", function(){
+
+            periodTabs.forEach(t => t.classList.remove("active"));
+            this.classList.add("active");
+
+            const period = this.getAttribute("data-period");
+            updateDashboardByPeriod(period);
+
+        });
+    });
 });
 
 
@@ -129,6 +143,14 @@ function switchPage(page) {
         'categories': 'Categories'
     };
     document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
+
+    const welcome = document.getElementById("welcomeMessage");
+
+    if(page === "dashboard"){
+        welcome.style.display = "block";
+    }else{
+        welcome.style.display = "none";
+    }
     
     // Load page-specific data
     if (page === 'expenses') {
@@ -292,7 +314,7 @@ async function handleExpenseSubmit(e) {
         amount: usdAmount,   // Save in USD
         category: formData.get('category'),
         date: formData.get('date'),
-        is_necessary: formData.get('is_necessary') === 'true',
+        is_necessary: true,
         notes: formData.get('notes')
     };
 
@@ -431,6 +453,36 @@ function updateDashboard() {
     // Update recent transactions
     renderRecentTransactions();
     updateBudgetDisplay();
+}
+
+function detectUnnecessaryExpense(expense) {
+
+    const keywords = [
+        "swiggy",
+        "zomato",
+        "netflix",
+        "amazon",
+        "shopping",
+        "movie",
+        "uber",
+        "ola",
+        "coffee",
+        "snacks"
+    ];
+
+    const text = expense.description.toLowerCase();
+
+    for (let word of keywords) {
+        if (text.includes(word)) {
+            return true;
+        }
+    }
+
+    if (expense.category === "Shopping" || expense.category === "Entertainment") {
+        return true;
+    }
+
+    return false;
 }
 
 // Calculate statistics
@@ -619,13 +671,49 @@ function getCategoryIcon(category) {
     return icons[category] || 'fas fa-dollar-sign';
 }
 
+function updateDashboardByPeriod(period){
+
+    const now = new Date();
+
+    let filtered = allExpenses;
+
+    if(period === "daily"){
+        const today = now.toISOString().split("T")[0];
+        filtered = allExpenses.filter(e => e.date === today);
+    }
+
+    if(period === "weekly"){
+        const weekAgo = new Date();
+        weekAgo.setDate(now.getDate() - 7);
+
+        filtered = allExpenses.filter(e => new Date(e.date) >= weekAgo);
+    }
+
+    if(period === "monthly"){
+        const month = now.toISOString().slice(0,7);
+        filtered = allExpenses.filter(e => e.date.startsWith(month));
+    }
+
+    if(period === "yearly"){
+        const year = now.getFullYear().toString();
+        filtered = allExpenses.filter(e => e.date.startsWith(year));
+    }
+
+    const original = allExpenses;
+    allExpenses = filtered;
+
+    updateDashboard();
+
+    allExpenses = original;
+}
+
 // Render expenses table
 function renderExpensesTable() {
     const tbody = document.getElementById('expensesTableBody');
     if (!tbody) return;
     
     if (allExpenses.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No expenses found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No expenses found</td></tr>';
         return;
     }
     
@@ -636,11 +724,7 @@ function renderExpensesTable() {
             <td>${expense.category}</td>
             <td>${formatMoney(expense.amount)}</td>
 
-            <td>
-                <span class="type-badge ${expense.is_necessary ? 'type-necessary' : 'type-unnecessary'}">
-                    ${expense.is_necessary ? 'Necessary' : 'Unnecessary'}
-                </span>
-            </td>
+            
             <td>
                 <div class="action-btns">
 
@@ -696,7 +780,9 @@ function renderUnnecessaryExpenses() {
     const savingsEl = document.getElementById('unnecessarySavings');
     if (!container) return;
     
-    const unnecessary = allExpenses.filter(e => !e.is_necessary);
+    const unnecessary = allExpenses.filter(
+        e => !e.is_necessary || detectUnnecessaryExpense(e)
+    );
     const totalSavings = unnecessary.reduce((sum, e) => sum + e.amount, 0);
     
     savingsEl.textContent = formatMoney(totalSavings);
@@ -712,8 +798,6 @@ function renderUnnecessaryExpenses() {
     
     container.innerHTML = unnecessary.map(expense => {
 
-        const alt = smartAlternatives[expense.category] || smartAlternatives["Other"];
-        const estimatedSavings = expense.amount * alt.savePercent;
 
         return `
         <div class="unnecessary-card">
@@ -726,12 +810,15 @@ function renderUnnecessaryExpenses() {
                 <div class="unnecessary-amount">
                     ${formatMoney(expense.amount)}
                 </div>
+                <p class="ai-warning-badge">
+                ⚠ AI detected this as potentially unnecessary
+                </p>
             </div>
 
             
 
-            <p style="color:#10b981;">
-                Potential Saving: ${formatMoney(estimatedSavings)}
+            <p style="color:#6b7280;">
+            This expense may not be essential.
             </p>
 
             <div class="unnecessary-actions">
@@ -1236,6 +1323,37 @@ function refreshCurrency() {
       unnecessary.textContent = selectedCurrency + num.toFixed(2);
     }
   }
+}
+
+function downloadMonthlyReport() {
+
+    const now = new Date();
+    const currentMonth = now.toISOString().slice(0,7);
+
+    const monthlyExpenses = allExpenses.filter(exp =>
+        exp.date.startsWith(currentMonth)
+    );
+
+    if (monthlyExpenses.length === 0) {
+        alert("No expenses for this month.");
+        return;
+    }
+
+    let csv = "Date,Description,Category,Amount,Type\n";
+
+    monthlyExpenses.forEach(exp => {
+        csv += `${exp.date},${exp.description},${exp.category},${exp.amount},${exp.is_necessary ? "Necessary" : "Unnecessary"}\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "monthly_expense_report.csv";
+    a.click();
+
+    window.URL.revokeObjectURL(url);
 }
 
 
