@@ -118,6 +118,10 @@ const userCurrency = "{{ currency }}";
                 <i class="fas fa-chart-line"></i>
                 <span>Analytics</span>
             </a>
+            <a href="#" class="nav-item" data-page="ai">
+                <i class="fas fa-robot"></i>
+                <span>AI Insights</span>
+            </a>
             <a href="#" class="nav-item" data-page="categories">
                 <i class="fas fa-tags"></i>
                 <span>Categories</span>
@@ -367,13 +371,35 @@ const userCurrency = "{{ currency }}";
                         <canvas id="categoryBarChart"></canvas>
                     </div>
                 </div>
+                
+                <div class="analytics-card">
+                    <h3>Spending Trend</h3>
+                    <p id="spendingTrendText">Calculating trend...</p>
+                </div>
+
+                <!-- 🔮 NEW: Spending Prediction -->
+                <div class="analytics-card">
+                    <h3>Spending Prediction</h3>
+                    <p id="spendingPredictionText">Calculating prediction...</p>
+                </div>
+
 
                 <div class="insights-section">
-                    <h3>AI Insights</h3>
+                    
                     <div class="insights-grid" id="insightsGrid">
                         <!-- Will be populated dynamically -->
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- AI Insights Page -->
+        <div class="page-content" id="ai-page" style="display:none;">
+            <div class="analytics-container">
+                    <h2>AI Financial Insights</h2>
+
+                    <div class="insights-grid" id="aiInsightsGrid">
+                    </div>
             </div>
         </div>
 
