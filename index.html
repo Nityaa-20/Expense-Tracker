@@ -139,14 +139,13 @@ const userCurrency = "{{ currency }}";
                 </button>
                 <div>
                     <h1 id="pageTitle">Dashboard</h1>
-                    <p class="welcome-text">Welcome back, {{ username }} 👋</p>
+                    <p class="welcome-text" id="welcomeMessage">
+                        Welcome back, {{ username }} 👋
+                    </p>
                  </div>
             </div>
             <div class="header-right">
-                <button class="header-icon">
-                    <i class="fas fa-bell"></i>
-                    <span class="badge">3</span>
-                </button>
+                
                 <div class="user-profile">
                     <img src="https://ui-avatars.com/api/?name={{ username }}&background=6366f1&color=fff" alt="User">
 
@@ -314,7 +313,6 @@ const userCurrency = "{{ currency }}";
                             <th>Description</th>
                             <th>Category</th>
                             <th>Amount</th>
-                            <th>Type</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -360,6 +358,10 @@ const userCurrency = "{{ currency }}";
         <div class="page-content" id="analytics-page" style="display: none;">
             <div class="analytics-container">
                 <h2>Expense Analytics</h2>
+
+                <button onclick="downloadMonthlyReport()" class="download-btn">
+                    <i class="fas fa-download"></i> Download Monthly Report
+                </button>
                 
                 <div class="analytics-grid">
                     <div class="analytics-card">
@@ -456,19 +458,7 @@ const userCurrency = "{{ currency }}";
                     <label>Date *</label>
                     <input type="date" name="date" required>
                 </div>
-                <div class="form-group">
-                    <label>Type *</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="is_necessary" value="true" checked>
-                            <span>Necessary</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="is_necessary" value="false">
-                            <span>Unnecessary</span>
-                        </label>
-                    </div>
-                </div>
+                
                 <div class="form-group">
                     <label>Notes (Optional)</label>
                     <textarea name="notes" rows="3" placeholder="Additional notes..."></textarea>
