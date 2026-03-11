@@ -1,6 +1,27 @@
 // Global variables
+let selectedCurrency = userCurrency || "$";
 let allExpenses = [];
 let chartInstances = {};
+let monthlyBudget = localStorage.getItem("monthlyBudget_" + username) || 0;
+
+
+
+// Currency conversion rates (base = USD)
+const currencyRates = {
+    "$": 1,
+    "₹": 83,
+    "€": 0.92,
+    "£": 0.78
+};
+
+
+function formatMoney(amount) {
+    const rate = currencyRates[selectedCurrency] || 1;
+    const converted = amount * rate;
+    return selectedCurrency + converted.toFixed(2);
+}
+
+
 
 // Category colors
 const categoryColors = {
@@ -13,13 +34,64 @@ const categoryColors = {
     'Other': '#6b7280'
 };
 
+const smartAlternatives = {
+    "Food": {
+        suggestion: "Cook at home instead of ordering outside.",
+        savePercent: 0.6
+    },
+    "Shopping": {
+        suggestion: "Wait 24 hours before buying this item.",
+        savePercent: 0.5
+    },
+    "Entertainment": {
+        suggestion: "Use free streaming platforms instead.",
+        savePercent: 0.7
+    },
+    "Transport": {
+        suggestion: "Try public transport or carpooling.",
+        savePercent: 0.4
+    },
+    "Bills": {
+        suggestion: "Check for cheaper subscription plans.",
+        savePercent: 0.3
+    },
+    "Other": {
+        suggestion: "Consider skipping this purchase.",
+        savePercent: 0.5
+    }
+};
+
+
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     loadExpenses();
     setupNav();
     setDefaultDate();
+    loadBudget();
+
+    // ✅ CURRENCY DROPDOWN LISTENER
+    const currencyDropdown = document.getElementById("currencySelect");
+
+    if (currencyDropdown) {
+        currencyDropdown.addEventListener("change", function () {
+            selectedCurrency = this.value;
+
+            document.getElementById("amountLabel").textContent =
+                `Amount (${selectedCurrency}) *`;
+
+            updateDashboard();
+            renderExpensesTable();
+            renderUnnecessaryExpenses();
+            renderCategories();
+            renderRecentTransactions();
+            updateBudgetDisplay();
+
+        });
+    }
 });
+
 
 // Setup navigation
 function setupNav() {
@@ -151,9 +223,11 @@ function setupEventListeners() {
     const menuToggle = document.querySelector('.menu-toggle');
     const sidebar = document.querySelector('.sidebar');
     
+    if (menuToggle && sidebar) {
     menuToggle.addEventListener('click', () => {
         sidebar.classList.toggle('active');
     });
+}
 }
 
 // Set default date to today
@@ -170,10 +244,23 @@ function setDefaultDate() {
 // Load expenses from API
 async function loadExpenses() {
     try {
-        const response = await fetch('/api/expenses');
+
+        const response = await fetch('/api/expenses', {
+            credentials: 'include'
+        });
+
         const data = await response.json();
-        allExpenses = data.expenses || [];
+
+        console.log("Expenses API response:", data);
+
+        if (data.success && data.expenses) {
+            allExpenses = data.expenses;
+        } else {
+            allExpenses = [];
+        }
+
         updateDashboard();
+
     } catch (error) {
         console.error('Error loading expenses:', error);
         allExpenses = [];
@@ -184,39 +271,72 @@ async function loadExpenses() {
 // Handle expense form submission
 async function handleExpenseSubmit(e) {
     e.preventDefault();
-    
+
+    // ✅ FIRST create formData
     const formData = new FormData(e.target);
+
+    const expenseId = formData.get('expense_id');
+
+
+    // ✅ THEN use it
+    const enteredAmount = parseFloat(formData.get('amount'));
+
+    // Convert entered currency back to USD before saving
+    const usdAmount = enteredAmount / (currencyRates[selectedCurrency] || 1);
+
     const expenseData = {
         description: formData.get('description'),
-        amount: parseFloat(formData.get('amount')),
+        amount: usdAmount,   // Save in USD
         category: formData.get('category'),
         date: formData.get('date'),
         is_necessary: formData.get('is_necessary') === 'true',
         notes: formData.get('notes')
     };
-    
+
     try {
-        const response = await fetch('/api/expenses', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(expenseData)
-        });
+
+        let response;
+
+        if (expenseId) {
         
+            response = await fetch(`/api/expenses/${expenseId}`, {
+                method: 'PUT',
+                credentials: "include",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(expenseData)
+            });
+
+        } else {
+        
+            response = await fetch('/api/expenses', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(expenseData)
+            });
+        }
+
         if (response.ok) {
             document.getElementById('expenseModal').classList.remove('active');
             e.target.reset();
+            document.getElementById('expenseId').value = '';
             await loadExpenses();
-            alert('Expense added successfully!');
+
+            alert(expenseId ? 'Expense updated successfully!' : 'Expense added successfully!');
         } else {
-            alert('Error adding expense');
+            alert('Error saving expense');
         }
+
     } catch (error) {
         console.error('Error:', error);
-        alert('Error adding expense');
+        alert('Error saving expense');
     }
 }
+
 
 // Delete expense
 async function deleteExpense(id) {
@@ -226,7 +346,9 @@ async function deleteExpense(id) {
     
     try {
         const response = await fetch(`/api/expenses/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
+            
         });
         
         if (response.ok) {
@@ -245,7 +367,8 @@ async function deleteExpense(id) {
 function showAlternativeModal(expense) {
     const modal = document.getElementById('alternativeModal');
     document.getElementById('altExpenseId').value = expense.id;
-    document.getElementById('altOriginalExpense').value = `${expense.description} - $${expense.amount}`;
+    document.getElementById('altOriginalExpense').value =
+        `${expense.description} - ${formatMoney(expense.amount)}`;
     modal.classList.add('active');
 }
 
@@ -264,6 +387,7 @@ async function handleAlternativeSubmit(e) {
     try {
         const response = await fetch('/api/alternatives', {
             method: 'POST',
+            credentials: "include",
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -290,17 +414,20 @@ function updateDashboard() {
     const stats = calculateStats();
     
     // Update stat cards
-    document.getElementById('totalExpenses').textContent = `$${stats.total.toFixed(2)}`;
-    document.getElementById('necessaryExpenses').textContent = `$${stats.necessary.toFixed(2)}`;
-    document.getElementById('unnecessaryExpenses').textContent = `$${stats.unnecessary.toFixed(2)}`;
-    document.getElementById('potentialSavings').textContent = `$${stats.potentialSavings.toFixed(2)}`;
-    
+    document.getElementById('totalExpenses').textContent = formatMoney(stats.total);
+    document.getElementById('necessaryExpenses').textContent = formatMoney(stats.necessary);
+    document.getElementById('unnecessaryExpenses').textContent = formatMoney(stats.unnecessary);
+    document.getElementById('potentialSavings').textContent = formatMoney(stats.potentialSavings);
+    updateBudgetProgress(stats.total);
+
+
     // Update charts
     updateExpenseChart();
     updateCategoryChart();
     
     // Update recent transactions
     renderRecentTransactions();
+    updateBudgetDisplay();
 }
 
 // Calculate statistics
@@ -308,16 +435,14 @@ function calculateStats() {
     const necessary = allExpenses
         .filter(e => e.is_necessary)
         .reduce((sum, e) => sum + e.amount, 0);
-    
+
     const unnecessary = allExpenses
         .filter(e => !e.is_necessary)
         .reduce((sum, e) => sum + e.amount, 0);
-    
+
     const total = necessary + unnecessary;
-    
-    const potentialSavings = allExpenses
-        .filter(e => e.alternative)
-        .reduce((sum, e) => sum + (e.alternative.savings || 0), 0);
+
+    const potentialSavings = unnecessary * 0.5;
     
     return { total, necessary, unnecessary, potentialSavings };
 }
@@ -343,7 +468,7 @@ function updateExpenseChart() {
     });
     
     const sortedDates = Object.keys(expensesByDate).sort();
-    const amounts = sortedDates.map(date => expensesByDate[date]);
+    const amounts = sortedDates.map(date => expensesByDate[date] || 0);
     
     chartInstances.expenseChart = new Chart(ctx, {
         type: 'line',
@@ -371,7 +496,8 @@ function updateExpenseChart() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '$' + value;
+                            return formatMoney(value);
+
                         }
                     }
                 }
@@ -468,7 +594,8 @@ function renderRecentTransactions() {
                     </div>
                 </div>
                 <div class="transaction-amount amount-negative">
-                    -$${expense.amount.toFixed(2)}
+                    -${formatMoney(expense.amount)}
+
                 </div>
             </div>
         `;
@@ -504,7 +631,8 @@ function renderExpensesTable() {
             <td>${expense.date}</td>
             <td>${expense.description}</td>
             <td>${expense.category}</td>
-            <td>$${expense.amount.toFixed(2)}</td>
+            <td>${formatMoney(expense.amount)}</td>
+
             <td>
                 <span class="type-badge ${expense.is_necessary ? 'type-necessary' : 'type-unnecessary'}">
                     ${expense.is_necessary ? 'Necessary' : 'Unnecessary'}
@@ -512,13 +640,20 @@ function renderExpensesTable() {
             </td>
             <td>
                 <div class="action-btns">
+
+                    <button class="btn-icon btn-edit" onclick='editExpense(${JSON.stringify(expense)})' title="Edit">
+                        <i class="fas fa-pen"></i>
+                    </button>
+
                     <button class="btn-icon btn-alt" onclick='showAlternativeModal(${JSON.stringify(expense)})' title="Add Alternative">
                         <i class="fas fa-lightbulb"></i>
                     </button>
+
                     <button class="btn-icon btn-delete" onclick="deleteExpense(${expense.id})" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
+
             </td>
         </tr>
     `).join('');
@@ -561,27 +696,51 @@ function renderUnnecessaryExpenses() {
     const unnecessary = allExpenses.filter(e => !e.is_necessary);
     const totalSavings = unnecessary.reduce((sum, e) => sum + e.amount, 0);
     
-    savingsEl.textContent = `$${totalSavings.toFixed(2)}`;
+    savingsEl.textContent = formatMoney(totalSavings);
+    if (totalSavings > 0) {
+        console.log("You can save", totalSavings);
+    }
+
     
     if (unnecessary.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #6b7280;">No unnecessary expenses found. Great job!</p>';
         return;
     }
     
-    container.innerHTML = unnecessary.map(expense => `
+    container.innerHTML = unnecessary.map(expense => {
+
+        const alt = smartAlternatives[expense.category] || smartAlternatives["Other"];
+        const estimatedSavings = expense.amount * alt.savePercent;
+
+        return `
         <div class="unnecessary-card">
             <div class="unnecessary-card-header">
                 <div>
                     <h4>${expense.description}</h4>
                     <p class="category">${expense.category}</p>
                 </div>
-                <div class="unnecessary-amount">$${expense.amount.toFixed(2)}</div>
+
+                <div class="unnecessary-amount">
+                    ${formatMoney(expense.amount)}
+                </div>
             </div>
-            <p>${expense.notes || 'This expense could be reduced or eliminated to save money.'}</p>
-            <span class="impact-badge">High Impact</span>
+
+            <p><strong>Alternative:</strong> ${alt.suggestion}</p>
+
+            <p style="color:#10b981;">
+                Potential Saving: ${formatMoney(estimatedSavings)}
+            </p>
+
+            <div class="unnecessary-actions">
+                <button onclick="deleteExpense(${expense.id})" class="btn-delete">
+                    Remove Expense
+                </button>
+            </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
+
 
 // Render alternatives
 async function renderAlternatives() {
@@ -589,8 +748,14 @@ async function renderAlternatives() {
     if (!container) return;
     
     try {
-        const response = await fetch('/api/alternatives');
+        const response = await fetch('/api/alternatives', {
+            credentials: 'include'
+        });
         const data = await response.json();
+        if (!data.success) {
+            console.error(data.error);
+            return;
+        }
         const alternatives = data.alternatives || [];
         
         if (alternatives.length === 0) {
@@ -608,7 +773,7 @@ async function renderAlternatives() {
                     </div>
                     <div class="savings-highlight">
                         <p>Potential Savings</p>
-                        <div class="savings-amount">$${alt.savings.toFixed(2)}</div>
+                        <div class="savings-amount">${formatMoney(alt.savings)}</div>
                     </div>
                     <p><strong>Try this:</strong> ${alt.suggestion}</p>
                     <p class="benefits">${alt.benefits || ''}</p>
@@ -673,7 +838,8 @@ function renderMonthlyChart() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '$' + value;
+                            return formatMoney(value);
+
                         }
                     }
                 }
@@ -726,7 +892,8 @@ function renderCategoryBarChart() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '$' + value;
+                            return formatMoney(value);
+
                         }
                     }
                 }
@@ -760,7 +927,7 @@ function generateInsights() {
         const percentage = ((stats.unnecessary / stats.total) * 100).toFixed(1);
         insights.push({
             title: 'Unnecessary Spending',
-            description: `${percentage}% of your expenses ($${stats.unnecessary.toFixed(2)}) are unnecessary. Consider reducing these to save more.`
+            description: `${percentage}% of your expenses (${formatMoney(stats.unnecessary)}) are unnecessary. Consider reducing these to save more.`
         });
     }
     
@@ -783,7 +950,7 @@ function generateInsights() {
     if (stats.potentialSavings > 0) {
         insights.push({
             title: 'Savings Opportunity',
-            description: `By following suggested alternatives, you could save up to $${stats.potentialSavings.toFixed(2)} per month!`
+            description: `By following suggested alternatives, you could save up to ${formatMoney(stats.potentialSavings)} per month!`
         });
     }
     
@@ -792,7 +959,7 @@ function generateInsights() {
         const avgDaily = stats.total / 30;
         insights.push({
             title: 'Daily Average',
-            description: `Your average daily spending is $${avgDaily.toFixed(2)}. Setting a daily budget can help you stay on track.`
+            description: `Your average daily spending is ${formatMoney(avgDaily)}. Setting a daily budget can help you stay on track.`
         });
     }
     
@@ -819,9 +986,149 @@ function renderCategories() {
                     <i class="${icon}"></i>
                 </div>
                 <h4>${category}</h4>
-                <div class="amount">$${total.toFixed(2)}</div>
+                <div class="amount">${formatMoney(total)}</div>
                 <p class="count">${count} transaction${count !== 1 ? 's' : ''}</p>
             </div>
         `;
     }).join('');
 }
+
+function editExpense(expense) {
+    const modal = document.getElementById('expenseModal');
+
+    // Fill form fields
+    document.getElementById('expenseId').value = expense.id;
+    document.querySelector('[name="description"]').value = expense.description;
+    document.querySelector('[name="amount"]').value =
+        (expense.amount * (currencyRates[selectedCurrency] || 1)).toFixed(2);
+    document.querySelector('[name="category"]').value = expense.category;
+    document.querySelector('[name="date"]').value = expense.date;
+    document.querySelector(`[name="is_necessary"][value="${expense.is_necessary}"]`).checked = true;
+    document.querySelector('[name="notes"]').value = expense.notes;
+
+    modal.classList.add('active');
+}
+
+function updateBudgetProgress(totalSpent){
+
+    const used = document.getElementById("budgetUsed");
+    const total = document.getElementById("budgetTotal");
+    const progress = document.getElementById("budgetProgress");
+    const message = document.getElementById("budgetMessage");
+
+    if(!used) return;
+
+    used.textContent = formatMoney(totalSpent);
+    total.textContent = formatMoney(monthlyBudget);
+
+    const percent = monthlyBudget > 0 ? (totalSpent / monthlyBudget) * 100 : 0;
+
+    progress.style.width = percent + "%";
+
+    if(percent > 100){
+        progress.style.background = "#ef4444";
+        message.textContent = "⚠ Budget exceeded!";
+    }
+    else if(percent > 80){
+        progress.style.background = "#f59e0b";
+        message.textContent = "⚠ You are close to your budget.";
+    }
+    else{
+        progress.style.background = "#10b981";
+        message.textContent = "✅ Spending is under control.";
+    }
+}
+
+window.saveBudget = function () {
+
+    const enteredBudget = parseFloat(document.getElementById("budgetInput").value);
+
+    if(!enteredBudget){
+        alert("Please enter a valid budget");
+        return;
+    }
+
+    const usdBudget = enteredBudget / (currencyRates[selectedCurrency] || 1);
+
+    monthlyBudget = usdBudget;
+
+    localStorage.setItem("monthlyBudget_" + username, usdBudget);
+
+    updateBudgetDisplay();
+
+    alert("Budget updated successfully!");
+}
+
+function loadBudget() {
+
+    const savedBudget = localStorage.getItem("monthlyBudget_" + username);
+
+    if(savedBudget){
+        monthlyBudget = parseFloat(savedBudget);
+
+        const convertedBudget = monthlyBudget * (currencyRates[selectedCurrency] || 1);
+
+        document.getElementById("budgetInput").value = convertedBudget.toFixed(2);
+    }
+
+    updateBudgetDisplay();
+}
+
+
+
+// ✅ UPDATE CURRENCY EVERYWHERE
+function refreshCurrency() {
+  document.querySelectorAll(".stat-value").forEach(el => {
+    let number = parseFloat(el.textContent.replace(/[^0-9.-]+/g,""));
+    if (!isNaN(number)) {
+      el.textContent = selectedCurrency + number.toFixed(2);
+    }
+  });
+
+  const unnecessary = document.getElementById("unnecessarySavings");
+  if (unnecessary) {
+    let num = parseFloat(unnecessary.textContent.replace(/[^0-9.-]+/g,""));
+    if (!isNaN(num)) {
+      unnecessary.textContent = selectedCurrency + num.toFixed(2);
+    }
+  }
+}
+
+
+function updateBudgetDisplay() {
+
+    const budget = monthlyBudget || 0;
+
+    const stats = calculateStats();
+    const spent = stats.total;
+
+    const usedEl = document.getElementById("budgetUsed");
+    const totalEl = document.getElementById("budgetTotal");
+    const progressEl = document.getElementById("budgetProgress");
+    const messageEl = document.getElementById("budgetMessage");
+
+    if (!usedEl || !totalEl) return;
+
+    usedEl.textContent = formatMoney(spent);
+    totalEl.textContent = formatMoney(budget);
+
+    const percent = budget > 0 ? (spent / budget) * 100 : 0;
+
+    progressEl.style.width = percent + "%";
+
+    if (percent > 100) {
+        progressEl.style.background = "#ef4444";
+        messageEl.textContent = "⚠ You exceeded your budget!";
+    } 
+    else if (percent > 80) {
+        progressEl.style.background = "#f59e0b";
+        messageEl.textContent = "⚠ You are close to your budget.";
+    } 
+    else {
+        progressEl.style.background = "#10b981";
+        messageEl.textContent = "✔ Spending is under control.";
+    }
+}
+
+
+
