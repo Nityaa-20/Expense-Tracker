@@ -31,4 +31,4 @@ A full-stack web application that helps users track expenses, manage budgets, an
 - PostgreSQL
 - SQLAlchemy
 
-## Project Structure
+
