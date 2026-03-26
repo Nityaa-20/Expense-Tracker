@@ -31,4 +31,6 @@ A full-stack web application that helps users track expenses, manage budgets, an
 - PostgreSQL
 - SQLAlchemy
 
+![image alt] (https://github.com/Nityaa-20/Expense-Tracker/blob/f0bf43d96511763bf3848b79dc7dcfc1623e829d/Screenshot%202026-03-26%20104015.png)
+
 
