@@ -33,4 +33,4 @@ A full-stack web application that helps users track expenses, manage budgets, an
 
 ![image alt](https://github.com/Nityaa-20/Expense-Tracker/blob/f0bf43d96511763bf3848b79dc7dcfc1623e829d/Screenshot%202026-03-26%20104015.png)
 ![image alt](https://github.com/Nityaa-20/Expense-Tracker/blob/5d1cb69b20162e85beb86b4e39eac408928502c5/Screenshot%202026-03-26%20104053.png)
-
+![image alt](https://github.com/Nityaa-20/Expense-Tracker/blob/6da3721eb0811656d9a476fee01b4d8b0fe52580/Screenshot%202026-03-26%20104117.png)
